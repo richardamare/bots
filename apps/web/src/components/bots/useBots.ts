@@ -34,3 +34,9 @@ export function botChatThread(
   }
   return newest;
 }
+
+/** `environmentId:projectId` keys of every bot's project, which the Code sidebar leaves out. */
+export function useBotProjectKeys(): ReadonlySet<string> {
+  const { environmentId, bots } = usePrimaryBots();
+  return new Set(bots.map((bot) => `${environmentId}:${bot.projectId}`));
+}

@@ -253,6 +253,7 @@ import {
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarModeSwitch } from "./bots/sidebarMode";
+import { useBotProjectKeys } from "./bots/useBots";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
 import { TooltipProvider } from "./ui/tooltip";
 import {
@@ -812,7 +813,13 @@ function useSidebarLookups() {
   const environments = useEnvironmentIdentities();
   const serverConfigs = useServerConfigs();
   const providerEntriesByEnvironment = useAtomValue(sidebarProviderEntriesAtom);
-  const projectGroups = useSidebarProjectGroups();
+  const botProjectKeys = useBotProjectKeys();
+  const projectGroups = useSidebarProjectGroups().filter(
+    (group) =>
+      !group.memberProjects.every((project) =>
+        botProjectKeys.has(`${project.environmentId}:${project.id}`),
+      ),
+  );
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
   );
@@ -1098,7 +1105,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             ),
           ),
         );
-  const threads = useQuietThreadShells();
+  const botProjectKeys = useBotProjectKeys();
+  const threads = useQuietThreadShells().filter(
+    (thread) => !botProjectKeys.has(`${thread.environmentId}:${thread.projectId}`),
+  );
   const promotingDraftThreadKeys = usePromotingDraftThreadKeys();
   const listedThreads =
     promotingDraftThreadKeys.length === 0
