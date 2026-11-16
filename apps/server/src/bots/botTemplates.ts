@@ -51,7 +51,7 @@ export const botAgentsMd = (bot: BotIdentity) =>
     "",
     "## Reaching the user",
     "",
-    "When a routine or a teammate's result produces something the user should see, end the turn with a short message for them and mark this thread unread with `t3_thread_organize` and `action: mark_unread`. Stay quiet when there is nothing new.",
+    "When a routine or a teammate's result produces something the user should see, end the turn with a short message for them. The app shows the user a new-message dot on its own. When there is nothing new, reply with one short line.",
     "",
   ].join("\n");
 
