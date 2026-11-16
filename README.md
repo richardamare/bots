@@ -15,14 +15,32 @@ Bots is a fork of [T3 Code](https://github.com/pingdotgg/t3code). The Code view 
 
 New bots use Claude Opus 5.5.
 
-## Run it
+## Install
+
+Bots runs on macOS with Apple silicon. Paste this into Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/richardamare/bots/main/install.sh | sh
+```
+
+It downloads the latest release, puts `Bots.app` in Applications and opens it. Run the same line again to update.
+
+You can also download the DMG from [Releases](https://github.com/richardamare/bots/releases/latest). The app is not notarized, so macOS blocks the first launch. Open System Settings, then Privacy & Security, and click Open Anyway.
+
+Bots keeps its data in `~/.bots`, apart from any T3 Code install.
+
+## Release
+
+Push a tag such as `v1.0.1`, or run the Release Bots workflow with a version. GitHub Actions builds the DMG and publishes the release.
+
+## Run from source
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Open the web URL it prints and pair with the token in the log. State lives in `~/.bots`, apart from any T3 Code install.
+Open the web URL it prints and pair with the token in the log.
 
 The [development runbook](./docs/operations/development.md#first-checkout) and the [architecture overview](./docs/internals/overview.md) still apply.
 
