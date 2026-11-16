@@ -4,7 +4,7 @@ import { ProjectIconColor } from "./project.ts";
 
 const BOT_AVATARS = [
   "bot",
-  "sparkles",
+  "star",
   "notebook-pen",
   "calendar-clock",
   "list-checks",
