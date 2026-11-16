@@ -4,7 +4,7 @@ import {
   type ScopedThreadRef,
   type ThreadId,
 } from "@t3tools/contracts";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import {
   isAtomCommandInterrupted,
@@ -32,6 +32,8 @@ import { useAtomValue } from "@effect/atom-react";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { ProjectFavicon } from "../ProjectFavicon";
+import { BotHeaderIdentity } from "../bots/BotHeaderIdentity";
+import { useBot } from "../bots/useBots";
 import {
   WorkspaceBreadcrumb,
   WorkspaceBreadcrumbItem,
@@ -89,6 +91,9 @@ export const ChatHeader = memo(function ChatHeader({
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
   const [collapseParentTitle, setCollapseParentTitle] = useState(false);
   const activeThreadRef = scopeThreadRef(activeThreadEnvironmentId, activeThreadId);
+  const bot = useBot(
+    activeProject === null ? null : scopeProjectRef(activeProject.environmentId, activeProject.id),
+  );
   const canOperateThread = useEnvironmentScope(
     activeThreadEnvironmentId,
     AuthOrchestrationOperateScope,
@@ -255,9 +260,10 @@ export const ChatHeader = memo(function ChatHeader({
       )}
       onContextMenu={handleHeaderContextMenu}
     >
+      {bot === null ? null : <BotHeaderIdentity bot={bot} />}
       <WorkspaceBreadcrumb
         ariaLabel="Thread breadcrumb"
-        className="flex-1 overflow-clip [overflow-clip-margin:2px]"
+        className={cn("flex-1 overflow-clip [overflow-clip-margin:2px]", bot !== null && "hidden")}
       >
         {activeProject ? (
           <>

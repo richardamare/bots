@@ -52,7 +52,12 @@ import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime
 import * as Schema from "effect/Schema";
 import { formatComposerModelMention } from "@t3tools/client-runtime/composer-model-mentions";
 import { isPasteAsTextShortcut } from "@t3tools/client-runtime/text-paste";
-import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import {
+  scopedThreadKey,
+  scopeProjectRef,
+  scopeThreadRef,
+} from "@t3tools/client-runtime/environment";
+import { useBot } from "../bots/useBots";
 import { parseSideChatCommand, serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 import { type FolderDropTarget, folderDropTarget, resolveDroppedFolderPath } from "./folderDrop";
 import { splitTransferredFiles } from "./workspaceFileDrop";
@@ -582,6 +587,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     supportsQuestionAttachments,
   });
   const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const bot = useBot(
+    activeProjectId === null ? null : scopeProjectRef(environmentId, activeProjectId),
+  );
   const composerDraftTargetKey = composerTargetKey(composerDraftTarget);
   const {
     heldRequestIds,
@@ -3639,7 +3647,10 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                             ? "Choose a project above to start a thread"
                             : showProviderUnavailable
                               ? "Enable a provider in Settings to send a message"
-                              : (offeredPromptSuggestion ?? DEFAULT_COMPOSER_PLACEHOLDER)
+                              : (offeredPromptSuggestion ??
+                                (bot === null
+                                  ? DEFAULT_COMPOSER_PLACEHOLDER
+                                  : `Message ${bot.name}…`))
                     }
                     placeholderSuffix={
                       offeredPromptSuggestion !== null ? (
