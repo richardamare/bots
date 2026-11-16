@@ -20,6 +20,7 @@ import * as Schema from "effect/Schema";
 
 import * as ServerConfig from "../config.ts";
 import * as ProjectService from "../project/ProjectService.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import { botAgentsMd, botClaudeMd, botMemoryFiles, sharedMeMd } from "./botTemplates.ts";
 
 const BotManifest = Bot.mapFields(({ folder: _folder, ...fields }) => fields);
@@ -52,6 +53,7 @@ const make = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const projects = yield* ProjectService.ProjectService;
+  const serverSettings = yield* ServerSettings.ServerSettingsService;
   const random = yield* SecureRandom.SecureRandom;
 
   const root = path.resolve(config.baseDir, "bots");
@@ -174,9 +176,20 @@ const make = Effect.gen(function* () {
           commandId: CommandId.make(`bot-project-icon:${id}`),
           projectId: manifest.projectId,
           projectIcon: { kind: "lucide", name: input.avatar, color: input.color },
-          defaultModelSelection: BOT_MODEL,
         })
         .pipe(Effect.mapError((cause) => new BotError({ message: cause.message })));
+      // A bot's chat is long-lived, so it never settles on its own.
+      yield* serverSettings
+        .updateSettings({
+          projectSettingsOverrides: {
+            [manifest.projectId]: {
+              defaultModelSelection: BOT_MODEL,
+              sidebarAutoSettleAfterDays: null,
+              sidebarAutoSettleOnMerge: false,
+            },
+          },
+        })
+        .pipe(Effect.mapError(botError(`Could not save ${input.name}'s settings.`)));
       return { ...manifest, folder };
     }).pipe(
       Effect.onExit((exit) =>
@@ -206,6 +219,9 @@ const make = Effect.gen(function* () {
         force: true,
       })
       .pipe(Effect.mapError((cause) => new BotError({ message: cause.message })));
+    yield* serverSettings
+      .updateSettings({ projectSettingsOverrides: { [input.projectId]: null } })
+      .pipe(Effect.ignore);
     // The folder holds the bot's memory, so it moves aside instead of disappearing.
     yield* fileSystem.makeDirectory(trashFolder, { recursive: true }).pipe(
       Effect.flatMap(() =>

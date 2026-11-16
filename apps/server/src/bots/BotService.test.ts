@@ -63,7 +63,11 @@ const withBots = <A, E>(
   }) => Effect.Effect<
     A,
     E,
-    BotService.BotService | ProjectService.ProjectService | NodeServices.NodeServices | Scope.Scope
+    | BotService.BotService
+    | ProjectService.ProjectService
+    | ServerSettings.ServerSettingsService
+    | NodeServices.NodeServices
+    | Scope.Scope
   >,
 ) =>
   Effect.gen(function* () {
@@ -77,6 +81,7 @@ it.effect("creates a bot as a project with persona and memory files", () =>
     Effect.gen(function* () {
       const bots = yield* BotService.BotService;
       const projects = yield* ProjectService.ProjectService;
+      const settings = yield* ServerSettings.ServerSettingsService;
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
 
@@ -103,10 +108,12 @@ it.effect("creates a bot as a project with persona and memory files", () =>
         name: "notebook-pen",
         color: "violet",
       });
-      assert.deepStrictEqual(project.defaultModelSelection, {
+      const overrides = (yield* settings.getSettings).projectSettingsOverrides[scribe.projectId];
+      assert.deepStrictEqual(overrides?.defaultModelSelection, {
         instanceId: ProviderInstanceId.make("claudeAgent"),
         model: "claude-opus-5-5",
       });
+      assert.isNull(overrides?.sidebarAutoSettleAfterDays);
       const agents = yield* fileSystem.readFileString(path.join(scribe.folder, "AGENTS.md"));
       assert.include(agents, "Turns meeting notes into tasks.");
       assert.include(agents, "You are the main bot");
