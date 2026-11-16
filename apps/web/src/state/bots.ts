@@ -22,3 +22,10 @@ export const botsDelete = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:bots:delete",
   tag: WS_METHODS.botsDelete,
 });
+
+export const botsMemory = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+  label: "environment-data:bots:memory",
+  tag: WS_METHODS.botsMemory,
+  staleTimeMs: 10_000,
+  idleTtlMs: 60_000,
+});
