@@ -5,6 +5,7 @@ import {
   BotError,
   CommandId,
   ProjectId,
+  ProviderInstanceId,
 } from "@t3tools/contracts";
 import { newProjectFolderName } from "@t3tools/shared/path";
 import * as Context from "effect/Context";
@@ -29,6 +30,10 @@ const encodeManifest = Schema.encodeEffect(BotManifestJson);
 
 const MANIFEST_FILE = "bot.json";
 const MAX_FOLDER_ATTEMPTS = 100;
+const BOT_MODEL = {
+  instanceId: ProviderInstanceId.make("claudeAgent"),
+  model: "claude-opus-5-5",
+};
 
 export class BotService extends Context.Service<
   BotService,
@@ -169,6 +174,7 @@ const make = Effect.gen(function* () {
           commandId: CommandId.make(`bot-project-icon:${id}`),
           projectId: manifest.projectId,
           projectIcon: { kind: "lucide", name: input.avatar, color: input.color },
+          defaultModelSelection: BOT_MODEL,
         })
         .pipe(Effect.mapError((cause) => new BotError({ message: cause.message })));
       return { ...manifest, folder };

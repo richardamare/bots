@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { ProviderInstanceId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -101,6 +102,10 @@ it.effect("creates a bot as a project with persona and memory files", () =>
         kind: "lucide",
         name: "notebook-pen",
         color: "violet",
+      });
+      assert.deepStrictEqual(project.defaultModelSelection, {
+        instanceId: ProviderInstanceId.make("claudeAgent"),
+        model: "claude-opus-5-5",
       });
       const agents = yield* fileSystem.readFileString(path.join(scribe.folder, "AGENTS.md"));
       assert.include(agents, "Turns meeting notes into tasks.");
