@@ -74,7 +74,7 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           shopt -s nullglob
-          files=(release/*.dmg release/*.zip release/*.blockmap release/*.yml)
+          files=(release/*.dmg release/*.zip release/*.blockmap release/latest-mac.yml)
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "The build produced no release files." >&2
             exit 1
