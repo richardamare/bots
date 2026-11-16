@@ -1,0 +1,91 @@
+name: Release Bots
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, such as 1.0.1. Tags the current main as v<version>."
+        required: true
+        type: string
+
+concurrency:
+  group: release-bots
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: macOS (Apple silicon)
+    if: github.repository == 'richardamare/bots'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="${INPUT_VERSION#v}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version '$version' is not x.y.z." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: aarch64-apple-darwin
+
+      - name: Align package versions to the release version
+        run: node scripts/update-release-package-versions.ts "${{ steps.version.outputs.version }}"
+
+      - name: Build the desktop app
+        env:
+          T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
+        run: >-
+          vp run dist:desktop:artifact
+          --platform mac --target dmg --arch arm64
+          --build-version "${{ steps.version.outputs.version }}"
+          --verbose
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          shopt -s nullglob
+          files=(release/*.dmg release/*.zip release/*.blockmap release/*.yml)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "The build produced no release files." >&2
+            exit 1
+          fi
+          printf '%s\n' "${files[@]}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
+          else
+            gh release create "$TAG" "${files[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "Bots $TAG" \
+              --generate-notes \
+              --latest
+          fi
