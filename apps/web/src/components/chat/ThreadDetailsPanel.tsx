@@ -9,6 +9,7 @@ import type {
 
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
+import { useBot } from "../bots/useBots";
 
 import type { ComposerThreadTarget, DraftId } from "../../composerDraftStore";
 import { useT3ProjectFileScripts } from "../../hooks/useT3ProjectFileScripts";
@@ -93,7 +94,13 @@ interface ThreadDetailsPanelProps extends Pick<
   usage: ThreadDetailsUsageInput;
 }
 
+// A bot chat is a conversation, so it has no project, script or Git controls.
 export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
+  const bot = useBot(scopeProjectRef(props.environmentId, props.projectId));
+  return bot === null ? <ProjectThreadDetailsPanel {...props} /> : null;
+}
+
+function ProjectThreadDetailsPanel(props: ThreadDetailsPanelProps) {
   const visible = useClientSettings(resolveThreadDetailsVisibility);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const fileScripts = useT3ProjectFileScripts(

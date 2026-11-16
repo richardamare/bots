@@ -1,7 +1,6 @@
-import { useAtomValue } from "@effect/atom-react";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
-import type { Bot, EnvironmentId } from "@t3tools/contracts";
+import type { Bot } from "@t3tools/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -9,10 +8,7 @@ import { useState } from "react";
 import { isElectron } from "../../env";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { cn } from "../../lib/utils";
-import { botsList } from "../../state/bots";
 import { useQuietThreadShells } from "../../state/entities";
-import { primaryEnvironmentIdAtom } from "../../state/primaryEnvironment";
-import { useEnvironmentQuery } from "../../state/query";
 import { buildThreadRouteParams } from "../../threadRoutes";
 import { resolveSidebarFolderDot } from "../Sidebar.logic";
 import { SidebarChromeFooter, SidebarChromeHeader } from "../sidebar/SidebarChrome";
@@ -21,6 +17,7 @@ import { SidebarContent, SidebarGroup, useSidebar } from "../ui/sidebar";
 import { BotAvatar } from "./BotAvatar";
 import { NewBotDialog } from "./NewBotDialog";
 import { SidebarModeSwitch } from "./sidebarMode";
+import { botChatThread, usePrimaryBots } from "./useBots";
 
 type BotDot = ReturnType<typeof resolveSidebarFolderDot>;
 
@@ -30,29 +27,6 @@ const DOT_LABEL: Record<NonNullable<BotDot>, string> = {
   unread: "New message",
   working: "Working…",
 };
-
-/** A bot's chat is its project's newest live thread. */
-function botChatThread(
-  bot: Bot,
-  environmentId: EnvironmentId,
-  threads: ReadonlyArray<EnvironmentThreadShell>,
-): EnvironmentThreadShell | null {
-  let newest: EnvironmentThreadShell | null = null;
-  for (const thread of threads) {
-    if (thread.environmentId !== environmentId || thread.projectId !== bot.projectId) continue;
-    if (thread.archivedAt !== null || thread.deletedAt !== null) continue;
-    if (newest === null || thread.createdAt > newest.createdAt) newest = thread;
-  }
-  return newest;
-}
-
-function usePrimaryBots() {
-  const environmentId = useAtomValue(primaryEnvironmentIdAtom);
-  const query = useEnvironmentQuery(
-    environmentId === null ? null : botsList({ environmentId, input: {} }),
-  );
-  return { environmentId, bots: query.data?.bots ?? [], query };
-}
 
 export default function BotsSidebar() {
   const { environmentId, bots, query } = usePrimaryBots();

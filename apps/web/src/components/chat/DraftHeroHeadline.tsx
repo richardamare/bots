@@ -46,6 +46,8 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { InlineButton } from "../ui/button";
 import { DraftProjectName } from "./DraftProjectName";
 import { DraftHeroProjectHeading } from "./DraftHeroProjectHeading";
+import { BotDraftHero } from "../bots/BotDraftHero";
+import { useBot } from "../bots/useBots";
 import { TriageDraftHero } from "./TriageDraftHero";
 
 const ADD_PROJECT_VALUE = "add-project";
@@ -87,6 +89,7 @@ export function DraftHeroHeadline({
   const pickerFilter = useComboboxFilter();
   const highlightedPickerValueRef = useRef<string | null>(null);
   const { canPinProjectGroup, toggleProjectGroupPin } = useProjectPin();
+  const bot = useBot(activeProjectRef);
 
   const environmentLabelById = new Map(
     environments.map((environment) => [environment.environmentId, environment.label] as const),
@@ -338,6 +341,8 @@ export function DraftHeroHeadline({
         {noProjectShortcut ? <TooltipPopup side="bottom">{noProjectShortcut}</TooltipPopup> : null}
       </Tooltip>
     ) : null;
+
+  if (bot !== null) return <BotDraftHero bot={bot} />;
 
   if (isScratchDraft && isTriageDraftPrompt) {
     const environment = environments.find(
