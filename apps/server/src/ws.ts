@@ -2890,6 +2890,7 @@ export const layerWsRpc = (
         [WS_METHODS.botsList]: () => bots.list.pipe(Effect.map((list) => ({ bots: list }))),
         [WS_METHODS.botsCreate]: (input) => bots.create(input),
         [WS_METHODS.botsDelete]: (input) => bots.delete(input),
+        [WS_METHODS.botsMemory]: (input) => bots.memory(input),
         [WS_METHODS.projectsEnsureScratch]: () =>
           managedFolders.ensureScratchProject.pipe(
             Effect.mapError(

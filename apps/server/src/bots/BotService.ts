@@ -3,6 +3,9 @@ import {
   type BotCreateInput,
   type BotDeleteInput,
   BotError,
+  type BotMemoryFile,
+  type BotMemoryInput,
+  type BotMemoryResult,
   CommandId,
   ProjectId,
   ProviderInstanceId,
@@ -43,6 +46,7 @@ export class BotService extends Context.Service<
     readonly list: Effect.Effect<ReadonlyArray<Bot>, BotError>;
     readonly create: (input: BotCreateInput) => Effect.Effect<Bot, BotError>;
     readonly delete: (input: BotDeleteInput) => Effect.Effect<void, BotError>;
+    readonly memory: (input: BotMemoryInput) => Effect.Effect<BotMemoryResult, BotError>;
   }
 >()("t3/bots/BotService") {}
 
@@ -234,7 +238,40 @@ const make = Effect.gen(function* () {
     );
   });
 
-  return BotService.of({ root, list, create, delete: remove });
+  const readMemoryFile = (folder: string, relative: string) =>
+    fileSystem.readFileString(path.join(folder, relative)).pipe(
+      Effect.map((content): Option.Option<BotMemoryFile> =>
+        Option.some({ path: relative, content }),
+      ),
+      Effect.orElseSucceed(() => Option.none<BotMemoryFile>()),
+    );
+
+  const memory: BotService["Service"]["memory"] = Effect.fn("BotService.memory")(function* (input) {
+    const bots = yield* list;
+    const bot = bots.find((candidate) => candidate.projectId === input.projectId);
+    if (bot === undefined) {
+      return yield* new BotError({ message: "That bot no longer exists." });
+    }
+    const logs = yield* fileSystem
+      .readDirectory(path.join(bot.folder, "memory", "log"))
+      .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
+    const newestLog = logs
+      .filter((entry) => entry.endsWith(".md"))
+      .toSorted()
+      .at(-1);
+    const files = yield* Effect.forEach(
+      [
+        "memory/rules.md",
+        "memory/facts.md",
+        ...(newestLog === undefined ? [] : [`memory/log/${newestLog}`]),
+        "../shared/me.md",
+      ],
+      (relative) => readMemoryFile(bot.folder, relative),
+    );
+    return { files: files.filter(Option.isSome).map((file) => file.value) };
+  });
+
+  return BotService.of({ root, list, create, delete: remove, memory });
 });
 
 export const layer = Layer.effect(BotService, make);

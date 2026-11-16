@@ -170,3 +170,25 @@ it.effect("deletes a bot's project and keeps its memory aside", () =>
     }),
   ),
 );
+
+it.effect("reads a bot's memory with its newest log and the shared profile", () =>
+  withBots(() =>
+    Effect.gen(function* () {
+      const bots = yield* BotService.BotService;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+
+      const bot = yield* bots.create({ name: "Scribe", job: "", avatar: "bot", color: "violet" });
+      const logDir = path.join(bot.folder, "memory", "log");
+      yield* fileSystem.writeFileString(path.join(logDir, "2026-11-15.md"), "old day");
+      yield* fileSystem.writeFileString(path.join(logDir, "2026-11-16.md"), "today");
+
+      const { files } = yield* bots.memory({ projectId: bot.projectId });
+      assert.deepStrictEqual(
+        files.map((file) => file.path),
+        ["memory/rules.md", "memory/facts.md", "memory/log/2026-11-16.md", "../shared/me.md"],
+      );
+      assert.strictEqual(files[2]?.content, "today");
+    }),
+  ),
+);

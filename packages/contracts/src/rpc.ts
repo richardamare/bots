@@ -413,12 +413,21 @@ import {
 } from "./sourceControl.ts";
 import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
-import { Bot, BotCreateInput, BotDeleteInput, BotError, BotsListResult } from "./bots.ts";
+import {
+  Bot,
+  BotCreateInput,
+  BotDeleteInput,
+  BotError,
+  BotMemoryInput,
+  BotMemoryResult,
+  BotsListResult,
+} from "./bots.ts";
 
 export const WS_METHODS = {
   botsList: "bots.list",
   botsCreate: "bots.create",
   botsDelete: "bots.delete",
+  botsMemory: "bots.memory",
 
   projectsListEntries: "projects.listEntries",
   projectsListIgnoredFiles: "projects.listIgnoredFiles",
@@ -1442,6 +1451,12 @@ const WsBotsDeleteRpc = Rpc.make(WS_METHODS.botsDelete, {
   error: Schema.Union([BotError, EnvironmentAuthorizationError]),
 });
 
+const WsBotsMemoryRpc = Rpc.make(WS_METHODS.botsMemory, {
+  payload: BotMemoryInput,
+  success: BotMemoryResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
 const WsProjectsCreateNewRpc = Rpc.make(WS_METHODS.projectsCreateNew, {
   payload: ProjectCreateNewInput,
   success: ProjectCreateNewResult,
@@ -2262,6 +2277,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsBotsListRpc,
   WsBotsCreateRpc,
   WsBotsDeleteRpc,
+  WsBotsMemoryRpc,
   WsProjectsEnsureScratchRpc,
   WsProjectsCreateNewRpc,
   WsProjectsCreateFromThreadRpc,

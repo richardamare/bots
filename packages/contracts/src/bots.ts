@@ -51,3 +51,19 @@ export type BotDeleteInput = typeof BotDeleteInput.Type;
 export class BotError extends Schema.TaggedError<BotError>()("BotError", {
   message: TrimmedNonEmptyString,
 }) {}
+
+export const BotMemoryInput = Schema.Struct({
+  projectId: ProjectId,
+});
+export type BotMemoryInput = typeof BotMemoryInput.Type;
+
+export const BotMemoryFile = Schema.Struct({
+  path: TrimmedNonEmptyString,
+  content: Schema.String,
+});
+export type BotMemoryFile = typeof BotMemoryFile.Type;
+
+export const BotMemoryResult = Schema.Struct({
+  files: Schema.Array(BotMemoryFile),
+});
+export type BotMemoryResult = typeof BotMemoryResult.Type;
