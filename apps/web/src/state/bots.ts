@@ -17,3 +17,8 @@ export const botsCreate = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "environment-data:bots:create",
   tag: WS_METHODS.botsCreate,
 });
+
+export const botsDelete = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "environment-data:bots:delete",
+  tag: WS_METHODS.botsDelete,
+});

@@ -1,19 +1,28 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
-import type { Bot } from "@t3tools/contracts";
+import {
+  isAtomCommandInterrupted,
+  squashAtomCommandFailure,
+} from "@t3tools/client-runtime/state/runtime";
+import type { Bot, EnvironmentId } from "@t3tools/contracts";
 import { useParams, useRouter } from "@tanstack/react-router";
-import { PlusIcon } from "lucide-react";
+import { EllipsisIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
+import { requestConfirmDialog } from "../../confirmDialog";
 import { isElectron } from "../../env";
 import { useNewThreadHandler } from "../../hooks/useHandleNewThread";
 import { cn } from "../../lib/utils";
+import { botsDelete } from "../../state/bots";
 import { useQuietThreadShells } from "../../state/entities";
+import { useAtomCommand } from "../../state/use-atom-command";
 import { buildThreadRouteParams } from "../../threadRoutes";
 import { resolveSidebarFolderDot } from "../Sidebar.logic";
 import { SidebarChromeFooter, SidebarChromeHeader } from "../sidebar/SidebarChrome";
 import { Button } from "../ui/button";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { SidebarContent, SidebarGroup, useSidebar } from "../ui/sidebar";
+import { stackedThreadToast, toastManager } from "../ui/toast";
 import { BotAvatar } from "./BotAvatar";
 import { NewBotDialog } from "./NewBotDialog";
 import { SidebarModeSwitch } from "./sidebarMode";
@@ -35,6 +44,7 @@ export default function BotsSidebar() {
   const handleNewThread = useNewThreadHandler();
   const { isMobile, setOpenMobile } = useSidebar();
   const params = useParams({ strict: false });
+  const remove = useAtomCommand(botsDelete, { reportFailure: false });
   const [creating, setCreating] = useState(false);
 
   const openBot = (bot: Bot, thread: EnvironmentThreadShell | null) => {
@@ -48,6 +58,27 @@ export default function BotsSidebar() {
       return;
     }
     void handleNewThread(scopeProjectRef(environmentId, bot.projectId));
+  };
+
+  const deleteBot = async (bot: Bot) => {
+    if (environmentId === null) return;
+    const confirmed = await requestConfirmDialog(
+      `Delete ${bot.name}? Its chat and routines go away. Its memory folder moves to bots/.deleted.`,
+      { variant: "destructive" },
+    );
+    if (confirmed !== true) return;
+    const result = await remove({ environmentId, input: { projectId: bot.projectId } });
+    query.refresh();
+    if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      const failure = squashAtomCommandFailure(result);
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: `Could not delete ${bot.name}`,
+          description: failure instanceof Error ? failure.message : "Try again.",
+        }),
+      );
+    }
   };
 
   return (
@@ -80,64 +111,19 @@ export default function BotsSidebar() {
             ) : null}
             {environmentId === null
               ? null
-              : bots.map((bot) => {
-                  const thread = botChatThread(bot, environmentId, threads);
-                  const dot = thread === null ? null : resolveSidebarFolderDot([thread]);
-                  const active =
-                    thread !== null &&
-                    params.environmentId === environmentId &&
-                    params.threadId === thread.id;
-                  return (
-                    <button
-                      key={bot.projectId}
-                      type="button"
-                      data-bot={bot.name}
-                      aria-current={active ? "page" : undefined}
-                      onClick={() => openBot(bot, thread)}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left outline-hidden transition-colors hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                        active && "bg-sidebar-row-selected",
-                      )}
-                    >
-                      <span className="relative">
-                        <BotAvatar avatar={bot.avatar} color={bot.color} />
-                        {dot === null ? null : (
-                          <span
-                            className={cn(
-                              "absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-sidebar",
-                              dot === "attention" && "bg-warning",
-                              dot === "failed" && "bg-error",
-                              dot === "unread" && "bg-info",
-                              dot === "working" && "bg-success",
-                            )}
-                          />
-                        )}
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "truncate text-sm",
-                              dot === "unread" || dot === "attention"
-                                ? "font-semibold"
-                                : "font-medium",
-                            )}
-                          >
-                            {bot.name}
-                          </span>
-                          {bot.primary ? (
-                            <span className="shrink-0 rounded-full bg-muted px-1.5 text-3xs text-muted-foreground">
-                              main
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {dot === null ? bot.job || "No job yet" : DOT_LABEL[dot]}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
+              : bots.map((bot) => (
+                  <BotRow
+                    key={bot.projectId}
+                    bot={bot}
+                    environmentId={environmentId}
+                    thread={botChatThread(bot, environmentId, threads)}
+                    routeThreadId={
+                      params.environmentId === environmentId ? (params.threadId ?? null) : null
+                    }
+                    onOpen={openBot}
+                    onDelete={(target) => void deleteBot(target)}
+                  />
+                ))}
           </div>
         </SidebarGroup>
       </SidebarContent>
@@ -154,5 +140,82 @@ export default function BotsSidebar() {
         />
       ) : null}
     </>
+  );
+}
+
+function BotRow(props: {
+  bot: Bot;
+  environmentId: EnvironmentId;
+  thread: EnvironmentThreadShell | null;
+  routeThreadId: string | null;
+  onOpen: (bot: Bot, thread: EnvironmentThreadShell | null) => void;
+  onDelete: (bot: Bot) => void;
+}) {
+  const { bot, thread } = props;
+  const dot = thread === null ? null : resolveSidebarFolderDot([thread]);
+  const active = thread !== null && props.routeThreadId === thread.id;
+  return (
+    <div className="group/bot relative">
+      <button
+        type="button"
+        data-bot={bot.name}
+        aria-current={active ? "page" : undefined}
+        onClick={() => props.onOpen(bot, thread)}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-2 py-2 pr-9 text-left outline-hidden transition-colors hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          active && "bg-sidebar-row-selected",
+        )}
+      >
+        <span className="relative">
+          <BotAvatar avatar={bot.avatar} color={bot.color} />
+          {dot === null ? null : (
+            <span
+              className={cn(
+                "absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-sidebar",
+                dot === "attention" && "bg-warning",
+                dot === "failed" && "bg-error",
+                dot === "unread" && "bg-info",
+                dot === "working" && "bg-success",
+              )}
+            />
+          )}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex items-center gap-1.5">
+            <span
+              className={cn(
+                "truncate text-sm",
+                dot === "unread" || dot === "attention" ? "font-semibold" : "font-medium",
+              )}
+            >
+              {bot.name}
+            </span>
+            {bot.primary ? (
+              <span className="shrink-0 rounded-full bg-muted px-1.5 text-3xs text-muted-foreground">
+                main
+              </span>
+            ) : null}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {dot === null ? bot.job || "No job yet" : DOT_LABEL[dot]}
+          </span>
+        </span>
+      </button>
+      <div className="absolute top-1/2 right-1.5 -translate-y-1/2 opacity-0 transition-opacity group-hover/bot:opacity-100 has-[[aria-expanded=true]]:opacity-100 has-focus-visible:opacity-100">
+        <Menu>
+          <MenuTrigger
+            render={<Button aria-label={`${bot.name} actions`} size="icon-xs" variant="ghost" />}
+          >
+            <EllipsisIcon />
+          </MenuTrigger>
+          <MenuPopup align="end">
+            <MenuItem variant="destructive" onClick={() => props.onDelete(bot)}>
+              <Trash2Icon />
+              Delete bot
+            </MenuItem>
+          </MenuPopup>
+        </Menu>
+      </div>
+    </div>
   );
 }
